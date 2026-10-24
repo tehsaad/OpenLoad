@@ -73,6 +73,14 @@ void DownloadWorker::run()
         m_note = QStringLiteral("The server does not support resuming, so the download restarted from the beginning.");
     }
 
+    // A name guessed from the URL is replaced once by the server's suggestion
+    // (Content-Disposition or the final URL after redirects), before any data is written.
+    if (task.autoName && !QFileInfo::exists(task.partPath()) && task.segments.isEmpty()
+        && !probe.suggestedName.isEmpty() && probe.suggestedName != task.fileName) {
+        task.fileName = uniqueFileName(task.directory, probe.suggestedName);
+    }
+    task.autoName = false;
+
     task.totalBytes = probe.totalSize;
     task.etag = probe.etag;
     task.lastModified = probe.lastModified;
@@ -113,7 +121,7 @@ void DownloadWorker::run()
         task.segments.clear();
     }
 
-    emit metadataReady(task.id, task.totalBytes, task.acceptRanges, segmented ? task.segments.size() : 1);
+    emit metadataReady(task.id, task.fileName, task.totalBytes, task.acceptRanges, segmented ? task.segments.size() : 1);
 
     TransferError error;
     if (segmented) {

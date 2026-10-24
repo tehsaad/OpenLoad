@@ -36,8 +36,8 @@ bool DownloadRepository::insert(DownloadTask &task)
     Statement s(m_db.handle(),
                 "INSERT INTO downloads (url, directory, file_name, status, priority, queue_position, total_bytes,"
                 " downloaded, etag, last_modified, accept_ranges, retry_count, error, interrupted, expected_sha256,"
-                " checksum_status, created_at, started_at, completed_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                " checksum_status, created_at, started_at, completed_at, auto_name)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
     if (!s.isValid())
         return false;
     s.bind(1, task.url);
@@ -59,6 +59,7 @@ bool DownloadRepository::insert(DownloadTask &task)
     bindTimestamp(s, 17, task.createdAt);
     bindTimestamp(s, 18, task.startedAt);
     bindTimestamp(s, 19, task.completedAt);
+    s.bind(20, task.autoName ? 1 : 0);
     if (!s.execute())
         return false;
     task.id = m_db.lastInsertId();
@@ -73,8 +74,8 @@ bool DownloadRepository::update(const DownloadTask &task)
     Statement s(m_db.handle(),
                 "UPDATE downloads SET url=?, directory=?, file_name=?, status=?, priority=?, queue_position=?,"
                 " total_bytes=?, downloaded=?, etag=?, last_modified=?, accept_ranges=?, retry_count=?, error=?,"
-                " interrupted=?, expected_sha256=?, checksum_status=?, created_at=?, started_at=?, completed_at=?"
-                " WHERE id=?");
+                " interrupted=?, expected_sha256=?, checksum_status=?, created_at=?, started_at=?, completed_at=?,"
+                " auto_name=? WHERE id=?");
     s.bind(1, task.url);
     s.bind(2, task.directory);
     s.bind(3, task.fileName);
@@ -94,7 +95,8 @@ bool DownloadRepository::update(const DownloadTask &task)
     bindTimestamp(s, 17, task.createdAt);
     bindTimestamp(s, 18, task.startedAt);
     bindTimestamp(s, 19, task.completedAt);
-    s.bind(20, task.id);
+    s.bind(20, task.autoName ? 1 : 0);
+    s.bind(21, task.id);
 
     if (!s.isValid() || !s.execute() || !writeSegments(task) || !m_db.commit()) {
         m_db.rollback();
@@ -161,7 +163,7 @@ QVector<DownloadTask> DownloadRepository::loadAll()
     Statement s(m_db.handle(),
                 "SELECT id, url, directory, file_name, status, priority, queue_position, total_bytes, downloaded,"
                 " etag, last_modified, accept_ranges, retry_count, error, interrupted, expected_sha256,"
-                " checksum_status, created_at, started_at, completed_at FROM downloads ORDER BY id");
+                " checksum_status, created_at, started_at, completed_at, auto_name FROM downloads ORDER BY id");
     while (s.next()) {
         DownloadTask task;
         task.id = s.int64(0);
@@ -184,6 +186,7 @@ QVector<DownloadTask> DownloadRepository::loadAll()
         task.createdAt = readTimestamp(s, 17);
         task.startedAt = readTimestamp(s, 18);
         task.completedAt = readTimestamp(s, 19);
+        task.autoName = s.int64(20) != 0;
         indexById.insert(task.id, tasks.size());
         tasks.append(task);
     }

@@ -37,6 +37,7 @@ struct DownloadTask {
     QString url;
     QString directory;
     QString fileName;
+    bool autoName = false; // name guessed from the URL; may be replaced by the server's suggestion
 
     TaskState state = TaskState::Queued;
     Priority priority = Priority::Normal;

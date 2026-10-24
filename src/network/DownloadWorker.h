@@ -42,7 +42,7 @@ public slots:
     void run();
 
 signals:
-    void metadataReady(qint64 taskId, qint64 totalBytes, bool acceptRanges, int connections);
+    void metadataReady(qint64 taskId, const QString &fileName, qint64 totalBytes, bool acceptRanges, int connections);
     void progress(qint64 taskId, qint64 downloaded, qint64 total, QVector<openload::SegmentInfo> segments);
     void finished(openload::WorkerOutcome outcome);
 

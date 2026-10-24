@@ -214,6 +214,7 @@ qint64 DownloadManager::addDownload(const AddRequest &request, QString *error)
     task.url = url;
     task.directory = directory;
     task.fileName = name;
+    task.autoName = request.fileName.trimmed().isEmpty();
     task.state = TaskState::Queued;
     task.priority = request.priority;
     task.queuePosition = DownloadQueue::nextPosition(entries);
@@ -518,13 +519,18 @@ void DownloadManager::rebalanceBandwidth()
 
 // ---------------------------------------------------------------- worker callbacks
 
-void DownloadManager::onMetadata(qint64 taskId, qint64 totalBytes, bool acceptRanges, int)
+void DownloadManager::onMetadata(qint64 taskId, const QString &fileName, qint64 totalBytes, bool acceptRanges, int)
 {
     DownloadTask *t = find(taskId);
     if (!t || !m_active.contains(taskId))
         return;
     t->totalBytes = totalBytes;
     t->acceptRanges = acceptRanges;
+    if (t->fileName != fileName || t->autoName) {
+        t->fileName = fileName;
+        t->autoName = false;
+        persist(*t);
+    }
     emit taskUpdated(taskId);
 }
 
@@ -563,6 +569,7 @@ void DownloadManager::onFinished(WorkerOutcome outcome)
 
     // Copy back what the worker learned.
     t->fileName = outcome.task.fileName;
+    t->autoName = outcome.task.autoName;
     t->totalBytes = outcome.task.totalBytes;
     t->downloadedBytes = outcome.task.downloadedBytes;
     t->etag = outcome.task.etag;

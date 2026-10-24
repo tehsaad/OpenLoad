@@ -46,6 +46,11 @@ const char *const kMigrations[] = {
     );
     CREATE INDEX idx_downloads_status ON downloads(status);
     )SQL",
+
+    // Version 2: remember whether the file name may still be replaced by the server's suggestion.
+    R"SQL(
+    ALTER TABLE downloads ADD COLUMN auto_name INTEGER NOT NULL DEFAULT 0;
+    )SQL",
 };
 
 constexpr int kMigrationCount = static_cast<int>(sizeof(kMigrations) / sizeof(kMigrations[0]));
