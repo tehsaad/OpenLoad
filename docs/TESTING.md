@@ -44,7 +44,7 @@ These were recorded on **2026-10-24** on Ubuntu 26.04 (x86_64, g++ 15.2, Qt 6.10
 | `tst_storage` | 15 passed, 0 failed | migrations, refusing a newer schema, upgrading a real version-1 database, round trip of every field and segment, SQL injection attempt stored literally, persistence across reopen, crash recovery (interrupted → Paused, bytes from disk, never Completed), settings validation, persistence, rejection and fallback for corrupt values |
 | `tst_network` | 33 passed, 0 failed | probe (ranges, no ranges, unknown length, 404, name sanitising, redirects, `file://` redirect refused, cancellation), full download, unknown length, HTTP errors and Retry-After, connection refused, dropped connection, resume with ranges, server ignoring ranges, content changing between attempts, wrong Content-Range rejected, unwritable destination, prompt cancellation (< 3 s), progress callbacks, bandwidth limit, segmented download and assembly, segmented resume, segmented fallback, segmented wrong ranges, incomplete segments refused, worker checksum verify and mismatch, existing file never overwritten, worker restart when the remote file changed |
 | `tst_manager` | 21 passed, 0 failed | add → complete → persisted, invalid and duplicate rejection, unique names, pause/resume (single and 4-segment), cancel deletes partial data, invalid operations rejected, transient retries, bounded retries, permanent errors not retried, concurrency limit never exceeded (max active observed = 1 with limit 1), queue waits until started, stop-queue re-queues, priority and ordering, graceful restart restores and resumes, crash recovery and resume, remove with file, remove while downloading, bandwidth limit from settings |
-| `tst_ui` | 10 passed, 0 failed | empty state on first run, all screens reachable, add dialog rejects `ftp://`, add dialog inspects a real server (size, resume support, Content-Disposition name) and starts the download, dashboard rows equal real tasks, segment panel shown only for segmented downloads, **GUI responsiveness**, light/dark theme switch |
+| `tst_ui` | 11 passed, 0 failed | empty state on first run, all screens reachable, add dialog rejects `ftp://`, add dialog inspects a real server (size, resume support, Content-Disposition name) and starts the download, dashboard rows equal real tasks, segment panel shown only for segmented downloads, **GUI responsiveness**, no overlapping statistics cards at the minimum window size, light/dark theme switch |
 
 (QtTest counts include each suite's `initTestCase` and `cleanupTestCase`, and every data row.)
 
@@ -89,7 +89,10 @@ Run before a release. Results are recorded in the release notes.
 
 ## Continuous integration
 
-| Workflow | Branch | What it does | Status |
+| Workflow | Runner | What it does | Verified run (2026-10-24) |
 |---|---|---|---|
-| `.github/workflows/linux.yml` | `feature/shared-core`, `feature/linux-desktop` | Builds on Ubuntu and runs `ctest` | see the workflow runs on GitHub |
-| `.github/workflows/windows.yml` | `feature/windows-desktop` | Builds with MSVC, runs `ctest` and builds the NSIS installer | see `packaging/windows/README.md` |
+| `linux.yml` on `feature/shared-core` | ubuntu-24.04 (Qt 6.4.2) | build + `ctest` | [success](https://github.com/tehsaad/OpenLoad/actions/runs/40079460088): 6/6 suites |
+| `linux.yml` on `feature/linux-desktop` | ubuntu-24.04 | build + `ctest` + `.deb` + artifact | [success](https://github.com/tehsaad/OpenLoad/actions/runs/40079884556) |
+| `windows.yml` on `feature/windows-desktop` | windows-2022, MSVC 2022, Qt 6.8.3, vcpkg curl/sqlite3 | build + `ctest` + NSIS installer + silent install → launch installed app → silent uninstall | [success](https://github.com/tehsaad/OpenLoad/actions/runs/40080104328): 6/6 suites, `OpenLoad-0.1.0-Setup.exe` (38.1 MB) |
+
+These CI runs used the code before the minimum-size layout fix. Later runs are listed on the repository's Actions page.

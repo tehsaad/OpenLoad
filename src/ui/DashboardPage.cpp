@@ -42,8 +42,10 @@ DashboardPage::DashboardPage(DownloadManager *manager, DownloadTableModel *model
     auto *titles = new QVBoxLayout;
     titles->setSpacing(2);
     titles->addWidget(makeLabel(QStringLiteral("Dashboard"), QStringLiteral("title"), this));
-    titles->addWidget(makeLabel(QStringLiteral("Everything OpenLoad is downloading, waiting for and has finished."),
-                                QStringLiteral("subtitle"), this));
+    auto *subtitle = makeLabel(QStringLiteral("Everything OpenLoad is downloading, waiting for and has finished."),
+                               QStringLiteral("subtitle"), this);
+    subtitle->setWordWrap(true);
+    titles->addWidget(subtitle);
     header->addLayout(titles, 1);
     auto *pauseAll = makeButton(QStringLiteral("Pause all"), QStringLiteral("pause"), QString(), this);
     auto *resumeAll = makeButton(QStringLiteral("Resume all"), QStringLiteral("play"), QString(), this);
@@ -64,11 +66,11 @@ DashboardPage::DashboardPage(DownloadManager *manager, DownloadTableModel *model
     m_failedCard = new StatCard(QStringLiteral("Failed"), QStringLiteral("alert"), this);
     m_dataCard = new StatCard(QStringLiteral("Downloaded"), QStringLiteral("data"), this);
     m_speedCard->sparkline();
-    stats->addWidget(m_activeCard);
-    stats->addWidget(m_speedCard, 2);
-    stats->addWidget(m_completedCard);
-    stats->addWidget(m_failedCard);
-    stats->addWidget(m_dataCard);
+    stats->addWidget(m_activeCard, 2);
+    stats->addWidget(m_speedCard, 3);
+    stats->addWidget(m_completedCard, 2);
+    stats->addWidget(m_failedCard, 2);
+    stats->addWidget(m_dataCard, 2);
     root->addLayout(stats);
 
     // Main area: table card + recent activity card
@@ -88,7 +90,7 @@ DashboardPage::DashboardPage(DownloadManager *manager, DownloadTableModel *model
     m_search->setPlaceholderText(QStringLiteral("Search name or URL   (Ctrl+F)"));
     m_search->addAction(Theme::icon(QStringLiteral("search")), QLineEdit::LeadingPosition);
     m_search->setClearButtonEnabled(true);
-    m_search->setMinimumWidth(240);
+    m_search->setMinimumWidth(180);
     m_group = new QComboBox(tableCard);
     m_group->addItem(QStringLiteral("All downloads"), DownloadFilterModel::All);
     m_group->addItem(QStringLiteral("Downloading"), DownloadFilterModel::Active);
