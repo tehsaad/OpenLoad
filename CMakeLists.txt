@@ -15,7 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(OPENLOAD_BUILD_TESTS "Build the automated test suite" ON)
 
-find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Svg)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Svg Concurrent)
 find_package(CURL REQUIRED)
 find_package(SQLite3 REQUIRED)
 
