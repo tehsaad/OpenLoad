@@ -1,0 +1,29 @@
+name: Linux build and tests
+
+on:
+  push:
+    branches: [ "feature/**", "main" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qt6-base-dev qt6-svg-dev libgl-dev libcurl4-openssl-dev libsqlite3-dev \
+            ninja-build pkg-config python3
+
+      - name: Configure
+        run: cmake --preset linux-debug
+
+      - name: Build
+        run: cmake --build --preset linux-debug
+
+      - name: Test
+        run: ctest --preset linux-debug

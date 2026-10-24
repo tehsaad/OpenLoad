@@ -1,0 +1,33 @@
+# Programming Fundamentals Concept Mapping
+
+This document links each concept from the first-semester Programming Fundamentals course (SEECS, NUST) to the place in OpenLoad where it is used. Paths are relative to `src/`. Line numbers refer to the version on `feature/shared-core` at the time of writing.
+
+| Concept | Where it appears | What to say in a viva |
+|---|---|---|
+| **Variables and data types** | `core/DownloadTask.h`: `qint64 totalBytes = -1`, `bool acceptRanges`, `int retryCount`, `double speed`, `QString fileName`, `QDateTime createdAt` | A 64-bit integer (`qint64`) is used for byte counts because files can be larger than 2 GB (the `int` limit). `-1` is a sentinel meaning "unknown size". |
+| **Enumerations** | `core/TaskState.h` (`enum class TaskState`), `Priority`, `ChecksumStatus`, `ErrorKind` in `core/RetryPolicy.h` | `enum class` gives named, type-safe constants instead of "magic numbers". |
+| **Conditional statements** | `core/RetryPolicy.cpp:7` (`classifyHttpStatus`: `if` chains on status codes), `core/UrlValidator.cpp:9` (one `if` per validation rule), `switch` in `core/TaskState.cpp:5` | Each rule rejects early with a clear message ("guard clauses"). |
+| **Loops** | `core/Formatters.cpp:7` (`while` dividing by 1024 to choose KB, MB or GB), `core/SegmentPlan.cpp:17` (`for` creating segments), `network/SegmentDownloader.cpp:146` (the main `while` loop driving all connections) | `while` is used when the number of repetitions is not known in advance; `for` when it is. |
+| **Functions and modular design** | `core/Formatters.cpp:55` `estimateRemainingSeconds()`, `core/FileNameUtils.cpp:26` `sanitizeFileName()`, `core/SegmentPlan.cpp:17` `planSegments()` | Small functions with one job each. They are pure (no side effects), which makes them easy to unit-test (`tests/tst_core.cpp`). |
+| **Arrays and vectors** | `QVector<SegmentInfo> segments` in `DownloadTask`, `QVector<QueueEntry>` in `scheduler/DownloadQueue.cpp`, the C array `kMigrations[]` in `storage/Database.cpp`, `m_speedHistory` (the last 60 speeds) in `ui/DashboardPage.cpp` | A vector grows as needed. The fixed list of migrations is a plain array whose size is computed with `sizeof`. |
+| **Strings** | `core/FileNameUtils.cpp:26` (character-by-character filtering), `:83` (parsing `Content-Disposition`), `network/CurlEasy.cpp:27` (parsing `bytes 0-99/1000` with a regular expression), `core/UrlValidator.cpp:9` | String processing is a security feature: an unsafe file name from a server is cleaned before use. |
+| **Structs and classes** | `struct SegmentInfo` and `struct DownloadTask` (data); `class DownloadManager`, `class Database`, `class SpeedMeter` (data + behaviour + invariants); RAII in `class Statement` and `class CurlEasy` | Structs hold plain data. Classes protect their invariants with `private` members. Destructors release resources automatically (RAII). |
+| **File handling** | `network/HttpDownloader.cpp` (`QFile` open, seek, write, resize), `network/SegmentDownloader.cpp:201` `assembleSegments()` (read segment files in 1 MiB chunks and append), `core/Checksum.cpp:22` (read and hash), `storage/DownloadRepository.cpp:210` (file sizes after a crash) | Data is written to a temporary `.openload-part` file and renamed only when complete, so a half-written file is never mistaken for a finished one. |
+| **Searching** | `app/DownloadManager.cpp:93` `isDuplicate()` (linear search), `core/FileNameUtils.cpp:138` `uniqueFileName()` (search for the first free name), `ui/DownloadTableModel.cpp:239` (search box filter), `std::map::find` in `DownloadManager::find` | Linear search is fine for hundreds of tasks. `std::map` gives O(log n) lookup by id. |
+| **Sorting** | `scheduler/DownloadQueue.cpp:19` `comesBefore()` (priority first, then position: a custom comparison) and `:28` `std::stable_sort`; `ui/DashboardPage.cpp:237` (sort events by time, newest first) | `stable_sort` keeps equal elements in their original order, which is exactly FIFO for equal priorities. |
+| **State management** | `core/TaskState.cpp:5` `canTransition()`: a state machine; `app/DownloadManager.cpp:553` `onFinished()` decides the next state | Illegal actions (such as pausing a completed download) are rejected instead of corrupting data. Tested in `tst_core::stateTransitions` and `tst_manager::invalidOperationsAreRejected`. |
+| **Basic algorithms** | Splitting into ranges: `core/SegmentPlan.cpp:17`; checking ranges have no gaps or overlaps: `:34`; exponential backoff: `core/RetryPolicy.cpp:44`; moving average: `core/SpeedMeter.cpp:11`; token bucket: `core/RateLimiter.cpp:5`; time windows across midnight: `scheduler/Schedule.cpp:5` | Each algorithm is short, has a comment explaining it, and has its own unit test. |
+| **Error handling** | `struct TransferError` + `ErrorKind` (`core/RetryPolicy.h`), `errorFromCurl()` in `network/CurlEasy.cpp`, `validateSettings()` at `storage/SettingsRepository.cpp:23`, the `QString *error` output parameter of `DownloadManager::addDownload` | Errors are values carrying a kind and a human message. Transient errors are retried; permanent ones are shown to the user. |
+| **Data persistence** | `storage/Database.cpp:179` `migrate()` (versioned schema), `storage/DownloadRepository.cpp:158` `loadAll()`, `storage/SettingsRepository.cpp` (`QSettings`) | SQLite keeps the history. Prepared statements prevent SQL injection. Migrations upgrade old databases without losing data. |
+| **Concurrency** | `app/DownloadManager.cpp:463` `startTask()` creates a `QThread` per download; `network/DownloadWorker.cpp:34` runs on it; `std::atomic_bool stop` in `TransferControl` | Downloads must not freeze the window. Workers never touch widgets: they send signals, which Qt delivers on the GUI thread. The only shared variables are atomics, so no locks are needed. |
+| **Testing** | `tests/` (6 executables, 135 passing QtTest results including data rows) and the local test server `tests/server/test_server.py` | Every requirement listed in `docs/TESTING.md` has an automated test. |
+
+## Suggested viva walk-through (10 minutes)
+
+1. `core/DownloadTask.h`: the data. Variables, types, structs and vectors.
+2. `core/TaskState.cpp`: the state machine. `switch` and conditions.
+3. `core/SegmentPlan.cpp`: loops and arithmetic, shown with `tst_core::segmentPlanning`.
+4. `scheduler/DownloadQueue.cpp`: sorting with a custom comparison, and searching.
+5. `network/HttpDownloader.cpp`: file handling and the resume rules.
+6. `app/DownloadManager.cpp`, `startTask` and `onFinished`: threads, signals and error handling.
+7. Run `ctest`, then show the app downloading from the test server.

@@ -37,14 +37,14 @@ sudo apt install qt6-base-dev qt6-svg-dev libcurl4-openssl-dev libsqlite3-dev pk
 ## Phase checklist
 
 - [x] Phase 0 — audit and plan
-- [ ] Phase 1 — CMake, app shell, design system, five screens
-- [ ] Phase 2 — single-connection HTTP downloader
-- [ ] Phase 3 — lifecycle, cancel, pause/resume, retries
-- [ ] Phase 4 — SQLite persistence and recovery
-- [ ] Phase 5 — queue, concurrency, scheduler
-- [ ] Phase 6 — segmented downloading
-- [ ] Phase 7 — integrity, hardening, tests
-- [ ] Phase 8 — polish, docs
+- [x] Phase 1 — CMake, app shell, design system, five screens
+- [x] Phase 2 — single-connection HTTP downloader
+- [x] Phase 3 — lifecycle, cancel, pause/resume, retries
+- [x] Phase 4 — SQLite persistence and recovery
+- [x] Phase 5 — queue, concurrency, scheduler
+- [x] Phase 6 — segmented downloading
+- [x] Phase 7 — integrity, hardening, tests
+- [x] Phase 8 — polish, docs
 - [ ] Phase 9 — Linux packaging (`feature/linux-desktop`)
 - [ ] Phase 10 — Windows packaging + CI (`feature/windows-desktop`)
 - [ ] Phase 11 — final verification

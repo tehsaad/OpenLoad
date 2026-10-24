@@ -48,3 +48,7 @@ target_link_libraries(openload_ui PUBLIC openload_engine Qt6::Widgets Qt6::Svg Q
 
 add_executable(openload WIN32 app/main.cpp)
 target_link_libraries(openload PRIVATE openload_ui)
+
+# Developer benchmark (not installed).
+add_executable(bench_segments EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/tools/bench_segments.cpp)
+target_link_libraries(bench_segments PRIVATE openload_engine)

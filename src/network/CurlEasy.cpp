@@ -66,7 +66,7 @@ int parseRetryAfter(const QString &value)
     if (!when.isValid())
         return -1;
     QDateTime utc = when;
-    utc.setTimeZone(QTimeZone::UTC);
+    utc.setTimeZone(QTimeZone::utc());
     const qint64 delta = QDateTime::currentDateTimeUtc().secsTo(utc);
     return delta > 0 ? static_cast<int>(delta) : 0;
 }
