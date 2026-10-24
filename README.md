@@ -55,7 +55,7 @@ Workers never touch widgets; they report through queued signals. See [docs/ARCHI
 
 ## Building on Linux
 
-Tested on Ubuntu 26.04. Any distribution with Qt ≥ 6.2, libcurl ≥ 7.85 and CMake ≥ 3.21 should work.
+Verified on Ubuntu 26.04 (Qt 6.10, locally) and Ubuntu 24.04 (Qt 6.4, in CI). It needs Qt ≥ 6.4, libcurl ≥ 7.85 and CMake ≥ 3.21.
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config \
@@ -70,7 +70,7 @@ Debian packaging (`.deb`) lives on the `feature/linux-desktop` branch; see `pack
 
 ## Building on Windows
 
-You need Visual Studio 2022 (MSVC), CMake, Ninja, Qt 6 for MSVC 2022 64-bit, and curl and sqlite3 from vcpkg:
+Verified in CI with Visual Studio 2022 (MSVC x64), Qt 6.8.3 `msvc2022_64`, and curl and sqlite3 from vcpkg:
 
 ```powershell
 vcpkg install curl:x64-windows sqlite3:x64-windows
@@ -90,7 +90,7 @@ Click **Add download** (Ctrl+N), paste a link, then choose **Start now** or **Ad
 cmake --preset linux-debug && cmake --build --preset linux-debug && ctest --preset linux-debug
 ```
 
-Six suites cover the engine, storage, queue, network behaviour (ranges, ignored ranges, wrong `Content-Range`, changed files, errors, cancellation, segmentation) and the GUI. On 2026-10-24 all 6 passed (135 QtTest results). The worst measured GUI stall during an active download was 14 ms. Details, and an honest benchmark of when multiple connections help, are in [docs/TESTING.md](docs/TESTING.md).
+Six suites cover the engine, storage, queue, network behaviour (ranges, ignored ranges, wrong `Content-Range`, changed files, errors, cancellation, segmentation) and the GUI. On 2026-10-24 all 6 passed locally (136 QtTest results), in Linux CI (Qt 6.4) and in Windows CI (MSVC, Qt 6.8.3). The worst measured GUI stall during an active download was 14 ms. Details, and an honest benchmark of when multiple connections help, are in [docs/TESTING.md](docs/TESTING.md).
 
 ## Known limitations
 

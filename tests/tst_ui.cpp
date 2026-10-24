@@ -14,6 +14,7 @@
 #include "ui/DownloadDetailsPage.h"
 #include "ui/MainWindow.h"
 #include "ui/Theme.h"
+#include "ui/Widgets.h"
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -201,6 +202,21 @@ private slots:
         manager->cancel(id);
         qInfo("worst GUI event-loop gap during an active download: %lld ms", worstGap);
         QVERIFY2(worstGap < 250, qPrintable(QString("GUI blocked for %1 ms").arg(worstGap)));
+    }
+
+    void layoutFitsAtMinimumSize()
+    {
+        window->showPage(ui::MainWindow::Dashboard);
+        window->resize(window->minimumSize());
+        QTest::qWait(100);
+        const QList<ui::StatCard *> cards = window->dashboardPage()->findChildren<ui::StatCard *>();
+        QCOMPARE(cards.size(), 5);
+        for (int i = 0; i < cards.size(); ++i) {
+            QVERIFY(cards[i]->width() >= cards[i]->minimumWidth());
+            for (int j = i + 1; j < cards.size(); ++j)
+                QVERIFY2(!cards[i]->geometry().intersects(cards[j]->geometry()), "statistics cards overlap");
+        }
+        window->resize(1320, 820);
     }
 
     void lightThemeApplies()
