@@ -1,0 +1,10 @@
+build/
+build-*/
+out/
+.cache/
+CMakeUserPresets.json
+*.user
+compile_commands.json
+__pycache__/
+*.pyc
+/packaging/linux/*.deb
