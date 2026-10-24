@@ -121,7 +121,8 @@ StatCard::StatCard(const QString &caption, const QString &iconName, QWidget *par
     : QFrame(parent)
 {
     setObjectName(QStringLiteral("Card"));
-    setMinimumWidth(170);
+    setMinimumWidth(120);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(16, 14, 16, 14);
     m_layout->setSpacing(4);
@@ -136,6 +137,7 @@ StatCard::StatCard(const QString &caption, const QString &iconName, QWidget *par
 
     m_value = makeLabel(QStringLiteral("0"), QStringLiteral("statValue"), this);
     m_detail = makeLabel(QString(), QStringLiteral("muted"), this);
+    m_detail->setWordWrap(true);
     m_layout->addWidget(m_value);
     m_layout->addWidget(m_detail);
 }
