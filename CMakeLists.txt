@@ -36,3 +36,7 @@ endif()
 # Installation layout shared by the Linux package and the Windows installer.
 include(GNUInstallDirs)
 install(TARGETS openload RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(UNIX AND NOT APPLE)
+    include(packaging/linux/LinuxPackaging.cmake)
+endif()

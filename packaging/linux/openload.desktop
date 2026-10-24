@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=OpenLoad
+GenericName=Download Manager
+Comment=Download files with pause, resume, queues and multiple connections
+Exec=openload %U
+Icon=openload
+Terminal=false
+Categories=Network;FileTransfer;Qt;
+Keywords=download;manager;http;https;resume;queue;
+StartupNotify=true
+StartupWMClass=openload

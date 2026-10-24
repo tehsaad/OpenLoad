@@ -45,6 +45,6 @@ sudo apt install qt6-base-dev qt6-svg-dev libcurl4-openssl-dev libsqlite3-dev pk
 - [x] Phase 6 — segmented downloading
 - [x] Phase 7 — integrity, hardening, tests
 - [x] Phase 8 — polish, docs
-- [ ] Phase 9 — Linux packaging (`feature/linux-desktop`)
+- [x] Phase 9 — Linux packaging (`feature/linux-desktop`)
 - [ ] Phase 10 — Windows packaging + CI (`feature/windows-desktop`)
 - [ ] Phase 11 — final verification
