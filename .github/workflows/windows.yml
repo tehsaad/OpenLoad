@@ -1,0 +1,107 @@
+name: Windows build, tests and installer
+
+on:
+  push:
+    branches: [ "feature/windows-desktop" ]
+  pull_request:
+    branches: [ "feature/windows-desktop" ]
+  workflow_dispatch:
+
+env:
+  QT_VERSION: "6.8.3"
+  OPENLOAD_VERSION: "0.1.0"
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\vcpkg\archives
+          key: vcpkg-${{ runner.os }}-curl-sqlite3-v1
+
+      - name: Install libcurl and SQLite (vcpkg)
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows sqlite3:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake --preset windows-msvc
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+
+      - name: Build
+        run: cmake --build --preset windows-msvc
+
+      - name: Test
+        run: ctest --preset windows-msvc
+
+      - name: Stage application (windeployqt + runtime DLLs)
+        shell: pwsh
+        run: pwsh packaging/windows/stage.ps1 -BuildDir build/windows-msvc -StageDir "$pwd\stage"
+
+      - name: Build installer (NSIS)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            $nsis = "${env:ProgramFiles(x86)}\NSIS"
+            if (-not (Test-Path "$nsis\makensis.exe")) { choco install nsis -y --no-progress }
+            $env:PATH = "$nsis;$env:PATH"
+          }
+          makensis /DVERSION=$env:OPENLOAD_VERSION /DSTAGE="$pwd\stage" `
+                   /DOUTFILE="$pwd\OpenLoad-$env:OPENLOAD_VERSION-Setup.exe" packaging\windows\installer.nsi
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-Item "OpenLoad-$env:OPENLOAD_VERSION-Setup.exe" | Format-List Name, Length
+
+      - name: Smoke test the installed application
+        shell: pwsh
+        run: |
+          $setup = "OpenLoad-$env:OPENLOAD_VERSION-Setup.exe"
+          Start-Process -FilePath ".\$setup" -ArgumentList '/S', '/D=C:\OpenLoadTest' -Wait
+          if (-not (Test-Path 'C:\OpenLoadTest\bin\openload.exe')) { throw "openload.exe was not installed" }
+
+          # Launch the INSTALLED app; it renders every page to PNG and exits.
+          $app = Start-Process -FilePath 'C:\OpenLoadTest\bin\openload.exe' `
+                   -ArgumentList '--screenshots', "$pwd\windows-screenshots", '--screenshot-delay', '2000' -PassThru
+          if (-not $app.WaitForExit(90000)) { $app.Kill(); throw "OpenLoad did not exit in time" }
+          if ($app.ExitCode -ne 0) { throw "OpenLoad exited with code $($app.ExitCode)" }
+          foreach ($page in 'dashboard', 'queue', 'details', 'settings') {
+            if (-not (Test-Path "windows-screenshots\$page.png")) { throw "missing $page.png" }
+          }
+
+          # Silent uninstall (the _? argument makes the uninstaller run in place and wait).
+          Start-Process -FilePath 'C:\OpenLoadTest\Uninstall.exe' -ArgumentList '/S', '_?=C:\OpenLoadTest' -Wait
+          if (Test-Path 'C:\OpenLoadTest\bin') { throw "uninstall left program files behind" }
+          Write-Host "Install, launch and uninstall succeeded."
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenLoad-${{ env.OPENLOAD_VERSION }}-windows-x64-installer
+          path: OpenLoad-${{ env.OPENLOAD_VERSION }}-Setup.exe
+
+      - name: Upload screenshots from the installed app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-screenshots
+          path: windows-screenshots
+          if-no-files-found: ignore

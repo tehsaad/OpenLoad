@@ -36,3 +36,7 @@ endif()
 # Installation layout shared by the Linux package and the Windows installer.
 include(GNUInstallDirs)
 install(TARGETS openload RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(WIN32)
+    include(packaging/windows/WindowsPackaging.cmake)
+endif()
