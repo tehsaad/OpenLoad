@@ -26,6 +26,8 @@
 #include <QTest>
 #include <QTimer>
 
+#include <algorithm>
+
 using namespace openload;
 using namespace testsupport;
 

@@ -23,6 +23,8 @@
 #include <QTimeEdit>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace openload::ui {
 
 QueuePage::QueuePage(DownloadManager *manager, SettingsRepository *settings, Scheduler *scheduler,

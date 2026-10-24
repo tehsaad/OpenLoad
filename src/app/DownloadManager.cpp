@@ -13,6 +13,9 @@
 #include <QFileInfo>
 #include <QThread>
 
+#include <algorithm>
+#include <utility>
+
 namespace openload {
 
 DownloadManager::DownloadManager(DownloadRepository *repository, SettingsRepository *settings, QObject *parent)

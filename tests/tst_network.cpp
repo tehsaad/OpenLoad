@@ -17,6 +17,7 @@
 #include <QTest>
 
 #include <thread>
+#include <algorithm>
 
 using namespace openload;
 using namespace testsupport;

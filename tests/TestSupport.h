@@ -10,6 +10,8 @@
 #include <QString>
 #include <QTest>
 
+#include <algorithm>
+
 namespace testsupport {
 
 inline QByteArray expectedContent(qint64 size, int seed = 0)

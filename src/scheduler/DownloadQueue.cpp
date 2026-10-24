@@ -1,6 +1,7 @@
 #include "DownloadQueue.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace openload {
 

@@ -12,6 +12,9 @@
 #include <QPainterPath>
 #include <QStyle>
 
+#include <algorithm>
+#include <limits>
+
 namespace openload::ui {
 
 DownloadTableModel::DownloadTableModel(DownloadManager *manager, QObject *parent)

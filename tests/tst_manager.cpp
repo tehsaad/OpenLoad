@@ -15,6 +15,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <algorithm>
+
 using namespace openload;
 using namespace testsupport;
 

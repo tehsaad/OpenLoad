@@ -17,6 +17,8 @@
 #include <QStyle>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace openload::ui {
 
 namespace {

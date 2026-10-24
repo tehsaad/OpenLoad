@@ -32,3 +32,7 @@ if(OPENLOAD_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# Installation layout shared by the Linux package and the Windows installer.
+include(GNUInstallDirs)
+install(TARGETS openload RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
