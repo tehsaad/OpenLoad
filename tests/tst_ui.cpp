@@ -1,0 +1,217 @@
+// GUI tests (run with QT_QPA_PLATFORM=offscreen): every screen is reachable, the Add Download
+// dialog inspects real server metadata, the dashboard reflects real state, and the event loop
+// stays responsive while transfers run on worker threads.
+
+#include "TestSupport.h"
+
+#include "app/DownloadManager.h"
+#include "scheduler/Scheduler.h"
+#include "storage/Database.h"
+#include "storage/DownloadRepository.h"
+#include "storage/SettingsRepository.h"
+#include "ui/AddDownloadDialog.h"
+#include "ui/DashboardPage.h"
+#include "ui/DownloadDetailsPage.h"
+#include "ui/MainWindow.h"
+#include "ui/Theme.h"
+
+#include <QApplication>
+#include <QElapsedTimer>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QStackedWidget>
+#include <QTableView>
+#include <QTemporaryDir>
+#include <QTest>
+#include <QTimer>
+
+using namespace openload;
+using namespace testsupport;
+
+namespace {
+
+QPushButton *buttonWithText(QWidget *root, const QString &text)
+{
+    for (QPushButton *b : root->findChildren<QPushButton *>()) {
+        if (b->text() == text)
+            return b;
+    }
+    return nullptr;
+}
+
+bool hasVisibleLabelContaining(QWidget *root, const QString &text)
+{
+    for (QLabel *l : root->findChildren<QLabel *>()) {
+        if (l->isVisibleTo(root) && l->text().contains(text))
+            return true;
+    }
+    return false;
+}
+
+} // namespace
+
+class TestUi : public QObject
+{
+    Q_OBJECT
+
+    TestServer server;
+    QTemporaryDir dir;
+    Database db;
+    std::unique_ptr<DownloadRepository> repo;
+    std::unique_ptr<SettingsRepository> settings;
+    std::unique_ptr<DownloadManager> manager;
+    std::unique_ptr<Scheduler> scheduler;
+    std::unique_ptr<ui::MainWindow> window;
+
+private slots:
+    void initTestCase()
+    {
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        QVERIFY(server.start());
+        QVERIFY(db.open(dir.filePath("ui.db")));
+        QVERIFY(db.migrate());
+        repo = std::make_unique<DownloadRepository>(db);
+        settings = std::make_unique<SettingsRepository>(dir.filePath("ui.ini"));
+        AppSettings s = settings->current();
+        s.downloadDirectory = dir.path();
+        s.confirmBeforeDelete = false;
+        QVERIFY(settings->save(s));
+        ui::Theme::apply(*qApp, QStringLiteral("dark"));
+        manager = std::make_unique<DownloadManager>(repo.get(), settings.get());
+        manager->restore();
+        scheduler = std::make_unique<Scheduler>(settings.get(), manager.get());
+        window = std::make_unique<ui::MainWindow>(manager.get(), settings.get(), scheduler.get());
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window.get()));
+    }
+
+    void cleanupTestCase()
+    {
+        window.reset();
+        scheduler.reset();
+        manager.reset();
+        curl_global_cleanup();
+    }
+
+    void emptyStateOnFirstRun()
+    {
+        QWidget *dashboard = window->pageWidget(ui::MainWindow::Dashboard);
+        QVERIFY(hasVisibleLabelContaining(dashboard, QStringLiteral("No downloads yet")));
+    }
+
+    void allScreensAreReachable()
+    {
+        auto *stack = window->findChild<QStackedWidget *>();
+        QVERIFY(stack);
+        for (auto page : { ui::MainWindow::Queue, ui::MainWindow::Details, ui::MainWindow::Settings, ui::MainWindow::Dashboard }) {
+            window->showPage(page);
+            QCOMPARE(window->pageWidget(page)->isVisible(), true);
+        }
+        window->showPage(ui::MainWindow::Details);
+        QVERIFY(hasVisibleLabelContaining(window->pageWidget(ui::MainWindow::Details), QStringLiteral("No download selected")));
+        window->showPage(ui::MainWindow::Dashboard);
+    }
+
+    void addDialogRejectsBadUrls()
+    {
+        ui::AddDownloadDialog dialog(manager.get(), settings.get(), window.get());
+        dialog.setUrl(QStringLiteral("ftp://example.com/file"));
+        QPushButton *start = buttonWithText(&dialog, QStringLiteral("Start now"));
+        QVERIFY(start);
+        QVERIFY(!start->isEnabled());
+        QVERIFY(hasVisibleLabelContaining(&dialog, QStringLiteral("Only http:// and https://")));
+    }
+
+    void addDialogInspectsServer()
+    {
+        ui::AddDownloadDialog dialog(manager.get(), settings.get(), window.get());
+        dialog.setUrl(server.url(QStringLiteral("/file/123456?name=report%20final.pdf")));
+        // Wait for the debounce and the background probe.
+        QTRY_VERIFY_WITH_TIMEOUT(hasVisibleLabelContaining(&dialog, QStringLiteral("HTTP 206")), 10000);
+        QVERIFY(hasVisibleLabelContaining(&dialog, QStringLiteral("120.6 KB")));
+        QVERIFY(hasVisibleLabelContaining(&dialog, QStringLiteral("Supported")));
+
+        QLineEdit *name = nullptr;
+        for (QLineEdit *e : dialog.findChildren<QLineEdit *>()) {
+            if (e->text() == QStringLiteral("report final.pdf"))
+                name = e;
+        }
+        QVERIFY2(name, "file name from Content-Disposition was not filled in");
+
+        QPushButton *start = buttonWithText(&dialog, QStringLiteral("Start now"));
+        QVERIFY(start->isEnabled());
+        start->click();
+        QVERIFY(dialog.createdTaskId() > 0);
+        const qint64 id = dialog.createdTaskId();
+        QTRY_COMPARE_WITH_TIMEOUT(manager->task(id)->state, TaskState::Completed, 15000);
+        QCOMPARE(readFile(manager->task(id)->finalPath()), expectedContent(123456));
+    }
+
+    void dashboardShowsRealRows()
+    {
+        auto *table = window->dashboardPage()->table();
+        QTRY_COMPARE(table->model()->rowCount(), static_cast<int>(manager->tasks().size()));
+        QVERIFY(table->isVisible());
+    }
+
+    void detailsShowSegmentsOnlyWhenSegmented()
+    {
+        AddRequest request;
+        request.url = server.url(QStringLiteral("/file/6000000?rate=1500000"));
+        request.directory = dir.path();
+        const qint64 id = manager->addDownload(request);
+        QVERIFY(id > 0);
+        window->showDetails(id);
+        auto *details = window->detailsPage();
+        QTRY_VERIFY_WITH_TIMEOUT(manager->task(id)->segments.size() > 1, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(hasVisibleLabelContaining(details, QStringLiteral("(segmented)")), 5000);
+        QVERIFY(hasVisibleLabelContaining(details, QStringLiteral("Segments")));
+        manager->cancel(id);
+        QTRY_COMPARE_WITH_TIMEOUT(manager->task(id)->state, TaskState::Cancelled, 5000);
+        QVERIFY(!hasVisibleLabelContaining(details, QStringLiteral("(segmented)")));
+    }
+
+    void uiStaysResponsiveDuringTransfers()
+    {
+        AddRequest request;
+        request.url = server.url(QStringLiteral("/file/20000000?rate=4000000"));
+        request.directory = dir.path();
+        const qint64 id = manager->addDownload(request);
+        QVERIFY(id > 0);
+        window->showPage(ui::MainWindow::Dashboard);
+        QTRY_VERIFY_WITH_TIMEOUT(manager->task(id)->downloadedBytes > 0, 10000);
+
+        // Measure the gap between 10 ms timer ticks on the GUI thread for two seconds.
+        QElapsedTimer clock;
+        clock.start();
+        qint64 last = 0;
+        qint64 worstGap = 0;
+        QTimer ticker;
+        connect(&ticker, &QTimer::timeout, this, [&] {
+            const qint64 now = clock.elapsed();
+            worstGap = std::max(worstGap, now - last);
+            last = now;
+        });
+        ticker.start(10);
+        QTest::qWait(2000);
+        ticker.stop();
+        manager->cancel(id);
+        qInfo("worst GUI event-loop gap during an active download: %lld ms", worstGap);
+        QVERIFY2(worstGap < 250, qPrintable(QString("GUI blocked for %1 ms").arg(worstGap)));
+    }
+
+    void lightThemeApplies()
+    {
+        AppSettings s = settings->current();
+        s.theme = QStringLiteral("light");
+        QVERIFY(settings->save(s));
+        QVERIFY(!ui::Theme::isDark());
+        s.theme = QStringLiteral("dark");
+        QVERIFY(settings->save(s));
+        QVERIFY(ui::Theme::isDark());
+    }
+};
+
+QTEST_MAIN(TestUi)
+#include "tst_ui.moc"

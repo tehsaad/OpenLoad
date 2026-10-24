@@ -32,6 +32,7 @@ DownloadTask sampleTask(const QString &dir)
     t.retryCount = 2;
     t.errorMessage = "timeout";
     t.expectedSha256 = QString(64, QChar('a'));
+    t.autoName = true;
     t.createdAt = QDateTime::fromMSecsSinceEpoch(1'760'000'000'000);
     return t;
 }
@@ -60,6 +61,41 @@ private slots:
         QCOMPARE(db.schemaVersion(), Database::latestSchemaVersion());
         QVERIFY(db.migrate()); // running again is harmless
         QCOMPARE(db.schemaVersion(), Database::latestSchemaVersion());
+    }
+
+    void upgradesVersionOneDatabase()
+    {
+        // A database exactly as OpenLoad schema version 1 created it, with one row.
+        QTemporaryDir dir;
+        const QString path = dir.filePath("v1.db");
+        {
+            Database db;
+            QVERIFY(db.open(path));
+            QVERIFY(db.exec("CREATE TABLE schema_version (version INTEGER NOT NULL);"
+                            "INSERT INTO schema_version VALUES (1);"
+                            "CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL,"
+                            " directory TEXT NOT NULL, file_name TEXT NOT NULL, status TEXT NOT NULL,"
+                            " priority INTEGER NOT NULL DEFAULT 1, queue_position INTEGER NOT NULL DEFAULT 0,"
+                            " total_bytes INTEGER NOT NULL DEFAULT -1, downloaded INTEGER NOT NULL DEFAULT 0,"
+                            " etag TEXT, last_modified TEXT, accept_ranges INTEGER NOT NULL DEFAULT 0,"
+                            " retry_count INTEGER NOT NULL DEFAULT 0, error TEXT, interrupted INTEGER NOT NULL DEFAULT 0,"
+                            " expected_sha256 TEXT, checksum_status INTEGER NOT NULL DEFAULT 0, created_at INTEGER,"
+                            " started_at INTEGER, completed_at INTEGER);"
+                            "CREATE TABLE segments (download_id INTEGER NOT NULL, idx INTEGER NOT NULL,"
+                            " start_byte INTEGER NOT NULL, end_byte INTEGER NOT NULL, downloaded INTEGER NOT NULL DEFAULT 0,"
+                            " PRIMARY KEY (download_id, idx));"
+                            "INSERT INTO downloads (url, directory, file_name, status) VALUES"
+                            " ('https://example.com/old.zip', '/tmp', 'old.zip', 'completed');"));
+        }
+        Database db;
+        QVERIFY(db.open(path));
+        QVERIFY(db.migrate());
+        QCOMPARE(db.schemaVersion(), Database::latestSchemaVersion());
+        DownloadRepository repo(db);
+        const QVector<DownloadTask> tasks = repo.loadAll();
+        QCOMPARE(tasks.size(), 1); // existing history survives the upgrade
+        QCOMPARE(tasks.first().fileName, QString("old.zip"));
+        QVERIFY(!tasks.first().autoName);
     }
 
     void refusesNewerSchema()
@@ -103,6 +139,7 @@ private slots:
         QCOMPARE(l.retryCount, 2);
         QCOMPARE(l.expectedSha256, t.expectedSha256);
         QCOMPARE(l.createdAt, t.createdAt);
+        QVERIFY(l.autoName);
         QCOMPARE(l.segments.size(), 2);
         QCOMPARE(l.segments[1].start, qint64(2048));
         QCOMPARE(l.segments[1].downloaded, qint64(200));

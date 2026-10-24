@@ -474,7 +474,7 @@ private slots:
         worker.run();
         const WorkerOutcome outcome = finished.first().first().value<WorkerOutcome>();
         QVERIFY2(!outcome.error.isError(), qPrintable(outcome.error.message));
-        QCOMPARE(meta.first().at(3).toInt(), 1); // one connection: ranges are not supported
+        QCOMPARE(meta.first().at(4).toInt(), 1); // one connection: ranges are not supported
         QCOMPARE(readFile(dir.filePath("f.bin")), expectedContent(size));
     }
 
